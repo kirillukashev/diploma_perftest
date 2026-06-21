@@ -283,8 +283,12 @@ def style_tables(doc):
 
     Без autofit pandoc разбивает ширину таблицы поровну между колонками,
     из-за чего узкие колонки с числами «−0,054» переносятся по символу.
-    Стиль «все границы» отвечает требованию методички: на скриншоте
-    видно, что границы должны быть видны полностью.
+    Стиль «все границы» отвечает требованию методички: границы должны
+    быть видны полностью.
+
+    Шрифт в ячейках — 12 пт (МФТИ, Прил. 2: текст в таблице 12 или 14 пт).
+    Перенос текста внутри ячеек разрешён (noWrap снят), чтобы широкие
+    таблицы помещались по ширине страницы при 12 пт.
     """
     MATH_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math"
     NUM_RE = re.compile(r"^\(\d+\.\d+\)$")
@@ -373,10 +377,11 @@ def style_tables(doc):
                 tcW.set(qn("w:w"), "0")
                 tcW.set(qn("w:type"), "auto")
 
+                # МФТИ (Прил. 2): текст в таблице 12–14 пт. При 12 пт длинный
+                # текст должен переноситься внутри ячейки, поэтому noWrap снимаем.
                 noWrap = tcPr.find(qn("w:noWrap"))
-                if noWrap is None:
-                    noWrap = OxmlElement("w:noWrap")
-                    tcPr.append(noWrap)
+                if noWrap is not None:
+                    tcPr.remove(noWrap)
 
                 # Уменьшаем отступы в ячейке (по 36 twips = ~0.6 мм с каждой стороны)
                 tcMar = tcPr.find(qn("w:tcMar"))
@@ -415,7 +420,7 @@ def style_tables(doc):
                         if sz_el is None:
                             sz_el = OxmlElement(sz_tag)
                             rPr.append(sz_el)
-                        sz_el.set(qn("w:val"), "20")  # 10 pt = 20 half-points
+                        sz_el.set(qn("w:val"), "24")  # 12 pt = 24 half-points (МФТИ)
                     for run in para.runs:
                         rPr2 = run._r.find(qn("w:rPr"))
                         if rPr2 is None:
@@ -426,7 +431,7 @@ def style_tables(doc):
                             if sz_el is None:
                                 sz_el = OxmlElement(sz_tag)
                                 rPr2.append(sz_el)
-                            sz_el.set(qn("w:val"), "20")
+                            sz_el.set(qn("w:val"), "24")
 
 
 def fix_code_blocks(doc):

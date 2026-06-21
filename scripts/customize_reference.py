@@ -24,7 +24,7 @@ from docx.oxml import OxmlElement
 REF = Path(__file__).resolve().parent / "reference.docx"
 
 
-def set_run_font(run_props, font_name="Times New Roman", size_pt=12, bold=False):
+def set_run_font(run_props, font_name="Times New Roman", size_pt=12, bold=False, color="000000"):
     if run_props is None:
         return
     rfonts = run_props.find(qn("w:rFonts"))
@@ -33,6 +33,10 @@ def set_run_font(run_props, font_name="Times New Roman", size_pt=12, bold=False)
         run_props.insert(0, rfonts)
     for attr in ("w:ascii", "w:hAnsi", "w:cs", "w:eastAsia"):
         rfonts.set(qn(attr), font_name)
+    # Убираем тематическую привязку шрифта (иначе Word может подставить Aptos)
+    for attr in ("w:asciiTheme", "w:hAnsiTheme", "w:cstheme", "w:eastAsiaTheme"):
+        if qn(attr) in rfonts.attrib:
+            del rfonts.attrib[qn(attr)]
 
     sz = run_props.find(qn("w:sz"))
     if sz is None:
@@ -55,6 +59,18 @@ def set_run_font(run_props, font_name="Times New Roman", size_pt=12, bold=False)
     else:
         if b is not None:
             b.set(qn("w:val"), "false")
+
+    # Явный чёрный цвет — убирает синий цвет темы Word для заголовков
+    clr = run_props.find(qn("w:color"))
+    if clr is None:
+        clr = OxmlElement("w:color")
+        run_props.append(clr)
+    clr.set(qn("w:val"), color)
+    # Убираем тематическую привязку цвета
+    if qn("w:themeColor") in clr.attrib:
+        del clr.attrib[qn("w:themeColor")]
+    if qn("w:themeShade") in clr.attrib:
+        del clr.attrib[qn("w:themeShade")]
 
 
 def set_paragraph_format(
@@ -136,7 +152,13 @@ def configure_styles(doc):
         if name not in styles:
             continue
         pPr, rPr = get_or_create_style_props(styles[name])
-        set_run_font(rPr, size_pt=spec["size"], bold=True)
+        # Убираем все существующие цветовые/шрифтовые элементы с темой
+        # чтобы Word не подставлял синий Aptos поверх нашего стиля
+        for old_clr in rPr.findall(qn("w:color")):
+            rPr.remove(old_clr)
+        for old_fonts in rPr.findall(qn("w:rFonts")):
+            rPr.remove(old_fonts)
+        set_run_font(rPr, size_pt=spec["size"], bold=True, color="000000")
         set_paragraph_format(
             pPr,
             alignment=spec["align"],
